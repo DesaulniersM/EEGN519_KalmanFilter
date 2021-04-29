@@ -81,11 +81,11 @@ xDot=0;
 yDot=0;
 phiDot=0;
 
-xpos_ = zeros(1,23); %for noiseless sim
-xpos = xpos_;
+xpos_ = zeros(1,23); % For noiseless sim
+xpos = zeros(1,23);
 
-ypos_ = zeros(1,23);
-ypos = ypos_;
+ypos_ = zeros(1,23); % Noiseless sim
+ypos = zeros(1,23);
 
 ykn = [zeros(1,23); zeros(1,23); zeros(1,23)]
 
@@ -114,11 +114,11 @@ simError = zeros(23,3);
 estError = zeros(23,3);
 
 distance = zeros(23,1);
-    estDistance = distance;
+estDistance = distance;
 
 for i = 0:1:22
     % Ideal Simulation section (No disturbance, no noise)
-    xDot_ = .5 * cos(phiLast_)* (vr(i+1) + vl(i+1));
+    xDot_ = .5 * cos(phiLast_) * (vr(i+1) + vl(i+1));
     xlast_ = xDot_ + xlast_;
     xpos_(i+1) = xlast_; % Record in array
     
@@ -189,7 +189,7 @@ for i = 0:1:22
     Pk_plus = (eye(3,3) - Kk*Ck)*Pk;
     estimate(:,i+1) = xk_plus;
     
-    
+    %% Beacon section
     % Distance with noisy simulated measurements
     d_1 = norm([xpos(i+1); ypos(i+1)]-p1); % Distance to beacon 1
     d_2 = norm([xpos(i+1); ypos(i+1)]-p2); % Distance to beacon 2
