@@ -33,6 +33,7 @@ yDot_noise = sigma_xyDot * randn(L,1);
 phiDot_noise = sigma_phiDot * rand(L,1);
 
 
+
 % Left disturbances
 dist_l = zeros(23, 1);
 dist_l(5:6) = .2;
@@ -43,14 +44,13 @@ dist_r(17:20) = .15;
 
 % Initial Parameters
 Q = diag([sigma_xyDot sigma_xyDot sigma_phiDot]); % Covariance matrix for plant noise (?)
-R = diag([sigma_xy sigma_xy sigma_phi]); % Covariance matrix for measurement noise (?)
+% R = diag([sigma_xy sigma_xy sigma_phi]); % Covariance matrix for measurement noise (?)
+R = eye(6,6);
 P0 = eye(3,3)./500; % Covariance of initial state (0 since known exactly)
 x0 = [0;0;0]; % Initial coordinates
 
 Pk_plus = P0;
 xk_plus = x0;
-
-
 
 
 p1 = [5; 0]; % beacon 1 location
@@ -59,7 +59,7 @@ p3 = [8; 1]; % beacon 3 location
 p_robot = zeros(23,2);
 
 n = 3; % State Dimensions
-m = 3; % Measurement Dimensions
+m = 6; % Measurement Dimensions
 
 e = eye(3,3);
 
@@ -102,7 +102,14 @@ phiDot = vr(i+1)/b - vl(i+1)/b;
 phiLast = phiDot + phiLast ;
 phiPos(i+1) = phiLast+ phi_noise(i+1);
 
-yk = [xpos_noisy(i+1);ypos_noisy(i+1);phiPos(i+1)];
+% yk = [xpos_noisy(i+1);ypos_noisy(i+1);phiPos(i+1)];
+
+yk = [              sqrt( (p1(1)-xpos_noisy(i+1))^2 + (p1(2)-ypos_noisy(i+1))^2);
+                    atan2( p1(2)-ypos_noisy(i+1), p1(1) - xpos_noisy(i+1));
+                    sqrt( (p2(1)-xpos_noisy(i+1))^2 + (p2(2)-ypos_noisy(i+1))^2) ;
+                    atan2( p2(2)-ypos_noisy(i+1), p2(1) - xpos_noisy(i+1));
+                    sqrt( (p3(1)-xpos_noisy(i+1))^2 + (p3(2)-ypos_noisy(i+1))^2);
+                    atan2( p3(2)-ypos_noisy(i+1), p3(1) - xpos_noisy(i+1))];
 
 
 
@@ -152,7 +159,14 @@ for j = 1:2*n
     end
 %     Evaluate Simulated output values (This is where Beacon measurements
 %     go)
-    y_sim(:,j) = x_samples(:,j);        %Just pass location
+%     y_sim(:,j) = x_samples(:,j);        %Just pass location
+    
+    y_sim(:,j) = [  sqrt( (p1(1)-x_samples(1,j))^2 + (p1(2)-x_samples(2,j))^2);
+                    atan2( p1(2)-x_samples(2,j), p1(1) - x_samples(1,j));
+                    sqrt( (p2(1)-x_samples(1,j))^2 + (p2(2)-x_samples(2,j))^2) ;
+                    atan2( p2(2)-x_samples(2,j), p2(1) - x_samples(1,j));
+                    sqrt( (p3(1)-x_samples(1,j))^2 + (p3(2)-x_samples(2,j))^2);
+                    atan2( p3(2)-x_samples(2,j), p3(1) - x_samples(1,j))];
 end
     y_est = y_sim * avg;
     
@@ -245,5 +259,5 @@ plot(t,estDistance)
 title("Distance from Beacon Path")
 xlabel('time (s)')
 ylabel('Distance (m)')
-legend('Noisy Raw Measurements', 'EKF Measurements')
+legend('Noisy Raw Measurements', 'UKF Measurements')
 
