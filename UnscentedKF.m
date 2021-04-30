@@ -27,10 +27,21 @@ sigma_xyDot = .05; % Covariance for process/plant noise
 sigma_phi = .05; % Covariance for meas. noise (angle)
 sigma_phiDot = .01; % Cov for process/plant noise
 
+sigma_r = .05; % covar for Beacon distance meas.
+sigma_th = .01; % covar for beacon angle meas.
+
+
 % Measurement noise
 x_noise = sigma_xy * randn(L+1,1); % add mu for non-zero mean
 y_noise = sigma_xy * randn(L+1,1);
 phi_noise = sigma_phi * randn(L+1,1);
+
+d1_noise = sigma_r * randn(L+1,1); % noise for beacon distance 1
+d2_noise = sigma_r * randn(L+1,1);
+d3_noise = sigma_r * randn(L+1,1);
+th1_noise = sigma_th * randn(L+1,1);
+th2_noise = sigma_th * randn(L+1,1);
+th3_noise = sigma_th * randn(L+1,1);
 
 % Process noise
 xDot_noise = sigma_xyDot * randn(L+1,1);
@@ -51,9 +62,9 @@ dist_r(17:20) = .15;
 %% System initialization section
 % Initial Parameters
 Q = diag([sigma_xyDot sigma_xyDot sigma_phiDot]); % Covariance matrix for plant noise (?)
-R = diag([sigma_xy sigma_xy sigma_phi]); % Covariance matrix for measurement noise (?)
-%R = eye(6,6);
-P0 = eye(3,3)./500; % Covariance of initial state (0 since known exactly)
+%R = diag([sigma_xy sigma_xy sigma_phi]); % Covariance matrix for measurement noise (?)
+R = diag([sigma_xy sigma_xy sigma_phi]);
+P0 = eye(3,3)./500; % Covariance of initial state (~0 since known exactly)
 x0 = [0;0;0]; % Initial coordinates
 
 Pk_plus = P0;
@@ -75,7 +86,7 @@ distance = zeros(L+1,1);
 estDistance = zeros(L+1,1);
 
 n = 3; % State Dimensions
-m = 3; % Measurement Dimensions
+m = 6; % Measurement Dimensions
 
 e = eye(3,3);
 
@@ -90,7 +101,7 @@ yDot=0;
 phiDot=0;
 
 % Pos for "position", not "positive"
-xpos_ =      zeros(1,L+1); % For noiseless sim
+xpos_ =      zeros(1,L+1); % For ideal sim
 xpos =       zeros(1,L+1); % After process noise and disturbances
 xpos_noisy = zeros(1,L+1); % After measurement noise
 ypos_ =      zeros(1,L+1); 
@@ -103,7 +114,7 @@ phipos_noisy = zeros(1,L+1);
 estimate = zeros(3,L+1);
 
 for i = 1:L
-    %% Noiseless sim section (no noise, no disturbance):
+    %% Ideal sim section (no noise, no disturbance):
     xDot_ = .5 * cos(phipos_(i)) * (vr(i) + vl(i)); % Incremental change in x
     xpos_(i+1) = xDot_ + xpos_(i); % iterate sim
     
@@ -136,7 +147,7 @@ for i = 1:L
 %             sqrt( (p3(1)-xpos_noisy(i+1))^2 + (p3(2)-ypos_noisy(i+1))^2);
 %             atan2( p3(2)-ypos_noisy(i+1), p3(1) - xpos_noisy(i+1))];
 
-    %% TIME UPDATE SECTION
+    %% UKF TIME UPDATE SECTION
 
     %     Get standard deviation matrix
     M = chol(Pk_plus);
@@ -166,7 +177,7 @@ for i = 1:L
     P_kplus1_minus = P_kplus1_minus + Q;
 
 
-    %% MEASUREMENT UPDATE section
+    %% UKF MEASUREMENT UPDATE section
 
     xk_minus = x_kplus1_minus;
     Pk_minus = P_kplus1_minus;
@@ -184,12 +195,15 @@ for i = 1:L
          out_sim(:,j) = state_samples(:,j);        % Just pass location
 
           % Get output from simulated beacon measurements
-    %     out_sim(:,j) = [  sqrt( (p1(1)-state_samples(1,j))^2 + (p1(2)-state_samples(2,j))^2);
+    %     out_sim(:,j) = [sqrt( (p1(1)-state_samples(1,j))^2 + (p1(2)-state_samples(2,j))^2);
     %                     atan2( p1(2)-state_samples(2,j), p1(1) - state_samples(1,j));
     %                     sqrt( (p2(1)-state_samples(1,j))^2 + (p2(2)-state_samples(2,j))^2) ;
     %                     atan2( p2(2)-state_samples(2,j), p2(1) - state_samples(1,j));
     %                     sqrt( (p3(1)-state_samples(1,j))^2 + (p3(2)-state_samples(2,j))^2);
     %                     atan2( p3(2)-state_samples(2,j), p3(1) - state_samples(1,j))];
+        
+        
+    
     end
     out_est = out_sim * avg;
     

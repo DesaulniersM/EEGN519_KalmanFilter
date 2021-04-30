@@ -9,7 +9,7 @@ piv2 = -1 * (piv1 + piv1 * .927/1.57);
 vl = [1 1 1 1 1 -piv1 -piv1 -piv1 1 1 1 1 1 -piv2 -piv2 -piv2 1 1 1 1 1 0 0]; % Measured velocities of left wheel
 vr = [1 1 1 1 1  piv1  piv1  piv1 1 1 1 1 1  piv2  piv2  piv2 1 1 1 1 1 0 0]; % Measured velocities of right wheel
 L = length(vl); % Number of samples in vl, vr (Currently 23)
-t = 0:1:L-1; % Time vector 
+t = 0:1:L; % Time vector 
 % Summary of desired path:
 % Start at origin
 %  Arrive at beacon one (5,0) at k = 5
@@ -36,10 +36,13 @@ phi_noise = sigma_phi * randn(L+1,1);
 xDot_noise = sigma_xyDot * randn(L+1,1);
 yDot_noise = sigma_xyDot * randn(L+1,1);
 phiDot_noise = sigma_phiDot * rand(L+1,1);
+xDot_noise = zeros(L+1,1); %testing
+yDot_noise = zeros(L+1,1);
+phiDot_noise = zeros(L+1,1);
 
 % Left disturbances
 dist_l = zeros(L+1, 1);
-dist_l(5:6) = .2;
+%dist_l(5:6) = .2;
 
 % Right disturbances
 dist_r = zeros(L+1,1);
@@ -50,7 +53,7 @@ dist_r(17:20) = .15;
 Q = diag([sigma_xyDot sigma_xyDot sigma_phiDot]); % Covariance matrix for plant noise (?)
 R = diag([sigma_xy sigma_xy sigma_phi]); % Covariance matrix for measurement noise (?)
 %R = eye(6,6);
-P0 = eye(3,3)./500; % Covariance of initial state (0 since known exactly)
+P0 = eye(3,3)./500; % Covariance of initial state (~0 since known exactly)
 x0 = [0;0;0]; % Initial coordinates
 
 Pk_plus = P0;
@@ -65,11 +68,11 @@ p3 = [8; 1]; % beacon 3 location
 p_robot = zeros(L+1,2);
 
 % Error measurement matrices
-simError = zeros(L,3);
-estError = zeros(L,3);
+simError = zeros(L+1,3);
+estError = zeros(L+1,3);
 
-distance = zeros(L,1);
-estDistance = zeros(L,1);
+distance = zeros(L+1,1);
+estDistance = zeros(L+1,1);
 
 n = 3; % State Dimensions
 m = 3; % Measurement Dimensions
@@ -87,17 +90,17 @@ yDot=0;
 phiDot=0;
 
 % Pos for "position", not "positive"
-xpos_ =      zeros(1,L); % For noiseless sim
-xpos =       zeros(1,L); % After process noise and disturbances
-xpos_noisy = zeros(1,L); % After measurement noise
-ypos_ =      zeros(1,L); 
-ypos =       zeros(1,L); 
-ypos_noisy = zeros(1,L);
-phipos =     zeros(1,L);
-phipos_ =    zeros(1,L);
-phipos_noisy = zeros(1,L);
+xpos_ =      zeros(1,L+1); % For noiseless sim
+xpos =       zeros(1,L+1); % After process noise and disturbances
+xpos_noisy = zeros(1,L+1); % After measurement noise
+ypos_ =      zeros(1,L+1); 
+ypos =       zeros(1,L+1); 
+ypos_noisy = zeros(1,L+1);
+phipos =     zeros(1,L+1);
+phipos_ =    zeros(1,L+1);
+phipos_noisy = zeros(1,L+1);
 
-estimate = zeros(3,L);
+estimate = zeros(3,L+1);
 
 for i = 1:L
     %% Noiseless sim section (no noise, no disturbance):
@@ -113,17 +116,19 @@ for i = 1:L
     %% Realistic sim section:
     xDot = .5 * cos(phipos(i)) * (vr(i) + dist_r(i) + vl(i) + dist_l(i)) + xDot_noise(i); %Includes disturbance and measurement noise
     xpos(i+1) = xDot + xpos(i); % Iterate simulation
-    xpos_noisy(i+1) = xpos(i) + x_noise(i+1); % Collect measurement (with noise)
+    xpos_noisy(i+1) = xpos(i+1) + x_noise(i+1); % Collect measurement (with noise)
 
     yDot = .5 * sin(phipos(i))* (vr(i) + dist_r(i) + vl(i) + dist_l(i)) + yDot_noise(i);
     ypos(i+1) = yDot + ypos(i);
-    ypos_noisy(i+1) = ypos(i) + y_noise(i+1);
+    ypos_noisy(i+1) = ypos(i+1) + y_noise(i+1);
 
-    phiDot = 1/b * (vr(i) + dist_r(i) + vl(i) + dist_l(i)) + phiDot_noise(i);
+    phiDot = 1/b * (vr(i) + dist_r(i) - (vl(i) + dist_l(i))) + phiDot_noise(i);
     phipos(i+1) = phiDot + phipos(i) ;
     phipos_noisy(i+1) = phipos(i+1) + phi_noise(i+1);
 
     outk = [xpos_noisy(i+1); ypos_noisy(i+1); phipos_noisy(i+1)];
+    
+    %% Quasi-realistic sim section (proc. + meas. noise but no disturbance)
 
 %     Vincent's requested output version:
 %     outk = [  sqrt( (p1(1)-xpos_noisy(i+1))^2 + (p1(2)-ypos_noisy(i+1))^2);
@@ -133,7 +138,7 @@ for i = 1:L
 %             sqrt( (p3(1)-xpos_noisy(i+1))^2 + (p3(2)-ypos_noisy(i+1))^2);
 %             atan2( p3(2)-ypos_noisy(i+1), p3(1) - xpos_noisy(i+1))];
 
-    %% TIME UPDATE SECTION
+    %% UKF TIME UPDATE SECTION
 
     %     Get standard deviation matrix
     M = chol(Pk_plus);
@@ -146,9 +151,9 @@ for i = 1:L
             state_samples(:,j) = xk_plus - sqrt(n)*M*e(:,j-n);
         end
     %     Evaluate Simulated values
-        state_sim(:,j) = xk_plus + [cos(state_samples(3,j))*vr(i+1)/2 + cos(state_samples(3,j))*vl(i+1)/2;
-                                sin(state_samples(3,j))*vr(i+1)/2 + sin(state_samples(3,j))*vl(i+1)/2;
-                                vr(i+1)/b - vl(i+1)/b];
+        state_sim(:,j) = xk_plus + [cos(state_samples(3,j))*vr(i)/2 + cos(state_samples(3,j))*vl(i)/2;
+                                sin(state_samples(3,j))*vr(i)/2 + sin(state_samples(3,j))*vl(i)/2;
+                                vr(i)/b - vl(i)/b];
     end
 
     % Take average mean as predicted mean
@@ -163,7 +168,7 @@ for i = 1:L
     P_kplus1_minus = P_kplus1_minus + Q;
 
 
-    %% MEASUREMENT UPDATE section
+    %% UKF MEASUREMENT UPDATE section
 
     xk_minus = x_kplus1_minus;
     Pk_minus = P_kplus1_minus;
@@ -239,17 +244,18 @@ beacons = [ 1 0;
             5 5;
             8 1];
 figure(1)
-plot(xpos,ypos); % Intended path (no process or measurement noise)
+plot(xpos_, ypos_); % Intended path (no process or measurement noise)
 hold on
-plot(estimate(1,:),estimate(2,:)); % UKF results
+plot(xpos, ypos); % Actual path (no measurement noise)
 plot(xpos_noisy, ypos_noisy) % Actual state (includes measurement and process noise)
+plot(estimate(1,:),estimate(2,:)); % UKF results
 plot(beacons(:,1),beacons(:,2), 'o')
 
 title("Robot path")
 xlabel('X coordinate')
 xlim([0 9])
 ylabel('Y coordinate')
-legend('Intended Path', 'UKF results', 'noisy results')
+legend('Intended Path', 'actual path', 'unfiltered measurement results', 'UKF results')
 labels = {'Start','Beacon 1', 'Beacon 2', 'Beacon 3'};
 text(beacons(:,1),beacons(:,2),labels,'VerticalAlignment','top','HorizontalAlignment','right')
 
