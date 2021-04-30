@@ -24,12 +24,12 @@ t = 0:1:L; % Time vector
 mu = 0; % Mean for noise (unused)
 sigma_xy = .15; % Covariance for measurement noise
 sigma_xyDot = .05; % Covariance for process/plant noise
-sigma_phi = .05; % Covariance for meas. noise (angle)
-sigma_phiDot = .01; % Cov for process/plant noise
+sigma_phi = .02; % Covariance for meas. noise (angle)
+sigma_phiDot = .001; % Cov for process/plant noise
 
 sigma_r = .05; % covar for Beacon distance meas.
 sigma_th = .01; % covar for beacon angle meas.
-sigma_phi2 = .01; % covar for vehic pose beacon meas.
+sigma_phi2 = .001; % covar for vehic pose beacon meas.
 
 
 % Measurement noise
@@ -79,7 +79,7 @@ y_tris = zeros(1,L+1);
 p1 = [5; 0]; % beacon 1 location
 p2 = [5; 5]; % beacon 2 location
 p3 = [8; 1]; % beacon 3 location
-p_robot = zeros(L+1,2);
+% p_robot = zeros(L+1,2);
 
 % Error measurement matrices
 simError = zeros(L+1,3);
@@ -239,14 +239,14 @@ for i = 1:L
    
     %% Observation section
     estimate(:,i+1) = xk_plus;
-%     Distance with noisy simulated measurements
+    % Distance with noisy simulated measurements
     d_1 = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-p1); % Distance to beacon 1
     d_2 = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-p2); % Distance to beacon 2
     d_3 = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-p3); % Distance to beacon 3
     simError(i+1, :) = [d_1, d_2, d_3];
         
-%     Distance from actual simulated path (with noise)
-    d = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-[xpos(i+1);ypos(i+1)]); % Noisy distance (with meas. noise) to actual simulated path (with process noise and disturbances)
+    % Estimate error from actual simulated path (with noise)
+    d = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-[xpos(i+1);ypos(i+1)]); % raw measurement error to actual simulated path (with process noise and disturbances)
     estd = norm([xk_plus(1);xk_plus(2)]-[xpos(i+1);ypos(i+1)]); % Filter-estimated distance 
     distance(i+1) = d;
     estDistance(i+1) = estd;
