@@ -86,7 +86,7 @@ distance = zeros(L+1,1);
 estDistance = zeros(L+1,1);
 
 n = 3; % State Dimensions
-m = 6; % Measurement Dimensions
+m = 3; % Measurement Dimensions
 
 e = eye(3,3);
 
