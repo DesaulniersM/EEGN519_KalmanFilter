@@ -29,6 +29,7 @@ sigma_phiDot = .01; % Cov for process/plant noise
 
 sigma_r = .05; % covar for Beacon distance meas.
 sigma_th = .01; % covar for beacon angle meas.
+sigma_phi2 = .01; % covar for vehic pose beacon meas.
 
 
 % Measurement noise
@@ -42,6 +43,7 @@ d3_noise = sigma_r * randn(L+1,1);
 th1_noise = sigma_th * randn(L+1,1);
 th2_noise = sigma_th * randn(L+1,1);
 th3_noise = sigma_th * randn(L+1,1);
+phi_noise2 = sigma_phi2 * randn(L+1,1);
 
 % Process noise
 xDot_noise = sigma_xyDot * randn(L+1,1);
@@ -50,6 +52,7 @@ phiDot_noise = sigma_phiDot * rand(L+1,1);
 xDot_noise = zeros(L+1,1); %testing
 yDot_noise = zeros(L+1,1);
 phiDot_noise = zeros(L+1,1);
+
 
 % Left disturbances
 dist_l = zeros(L+1, 1);
@@ -63,7 +66,7 @@ dist_r(17:20) = .15;
 % Initial Parameters
 Q = diag([sigma_xyDot sigma_xyDot sigma_phiDot]); % Covariance matrix for plant noise (?)
 %R = diag([sigma_xy sigma_xy sigma_phi]); % Covariance matrix for measurement noise (?)
-R = diag([sigma_xy sigma_xy sigma_phi]);
+R = diag([sigma_r sigma_th sigma_r sigma_th sigma_r sigma_th sigma_phi2]);
 P0 = eye(3,3)./500; % Covariance of initial state (~0 since known exactly)
 x0 = [0;0;0]; % Initial coordinates
 
@@ -86,7 +89,7 @@ distance = zeros(L+1,1);
 estDistance = zeros(L+1,1);
 
 n = 3; % State Dimensions
-m = 6; % Measurement Dimensions
+m = 7; % Measurement Dimensions
 
 e = eye(3,3);
 
@@ -137,15 +140,28 @@ for i = 1:L
     phipos(i+1) = phiDot + phipos(i) ;
     phipos_noisy(i+1) = phipos(i+1) + phi_noise(i+1);
 
-    outk = [xpos_noisy(i+1); ypos_noisy(i+1); phipos_noisy(i+1)];
+    % outk = [xpos_noisy(i+1); ypos_noisy(i+1); phipos_noisy(i+1)];
 
-%     Vincent's requested output version:
-%     outk = [  sqrt( (p1(1)-xpos_noisy(i+1))^2 + (p1(2)-ypos_noisy(i+1))^2);
-%             atan2( p1(2)-ypos_noisy(i+1), p1(1) - xpos_noisy(i+1));
-%             sqrt( (p2(1)-xpos_noisy(i+1))^2 + (p2(2)-ypos_noisy(i+1))^2) ;
-%             atan2( p2(2)-ypos_noisy(i+1), p2(1) - xpos_noisy(i+1));
-%             sqrt( (p3(1)-xpos_noisy(i+1))^2 + (p3(2)-ypos_noisy(i+1))^2);
-%             atan2( p3(2)-ypos_noisy(i+1), p3(1) - xpos_noisy(i+1))];
+    % Vincent's requested output version:
+    outk = [  sqrt( (p1(1)-xpos(i))^2 + (p1(2)-ypos(i))^2);
+            atan2( p1(2)-ypos(i), p1(1) - xpos(i));
+            
+            sqrt( (p2(1)-xpos(i))^2 + (p2(2)-ypos(i))^2) ;
+            atan2( p2(2)-ypos(i), p2(1) - xpos(i));
+            
+            sqrt( (p3(1)-xpos(i))^2 + (p3(2)-ypos(i))^2);
+            atan2( p3(2)-ypos(i), p3(1) - xpos(i));
+            
+            phipos(i)];
+        
+     outk = outk + [d1_noise(i+1);
+                    th1_noise(i+1);
+                    d2_noise(i+1);
+                    th2_noise(i+1);
+                    d3_noise(i+1);
+                    th3_noise(i+1);
+                    phi_noise2(i+1);
+                    ];
 
     %% UKF TIME UPDATE SECTION
 
@@ -182,7 +198,7 @@ for i = 1:L
     xk_minus = x_kplus1_minus;
     Pk_minus = P_kplus1_minus;
 
-    %     Simulate 2n points through measurement
+    % Simulate 2n points through measurement
     for j = 1:2*n
     %     Generate samples
         if(j<=n)
@@ -192,18 +208,16 @@ for i = 1:L
         end
     %     Evaluate Simulated output values (This is where Beacon measurements
     %     go)
-         out_sim(:,j) = state_samples(:,j);        % Just pass location
+         %out_sim(:,j) = state_samples(:,j);        % Just pass location
 
           % Get output from simulated beacon measurements
-    %     out_sim(:,j) = [sqrt( (p1(1)-state_samples(1,j))^2 + (p1(2)-state_samples(2,j))^2);
-    %                     atan2( p1(2)-state_samples(2,j), p1(1) - state_samples(1,j));
-    %                     sqrt( (p2(1)-state_samples(1,j))^2 + (p2(2)-state_samples(2,j))^2) ;
-    %                     atan2( p2(2)-state_samples(2,j), p2(1) - state_samples(1,j));
-    %                     sqrt( (p3(1)-state_samples(1,j))^2 + (p3(2)-state_samples(2,j))^2);
-    %                     atan2( p3(2)-state_samples(2,j), p3(1) - state_samples(1,j))];
-        
-        
-    
+        out_sim(:,j) = [sqrt( (p1(1)-state_samples(1,j))^2 + (p1(2)-state_samples(2,j))^2);
+                        atan2( p1(2)-state_samples(2,j), p1(1) - state_samples(1,j));
+                        sqrt( (p2(1)-state_samples(1,j))^2 + (p2(2)-state_samples(2,j))^2) ;
+                        atan2( p2(2)-state_samples(2,j), p2(1) - state_samples(1,j));
+                        sqrt( (p3(1)-state_samples(1,j))^2 + (p3(2)-state_samples(2,j))^2);
+                        atan2( p3(2)-state_samples(2,j), p3(1) - state_samples(1,j));
+                        state_samples(3,j) ];
     end
     out_est = out_sim * avg;
     
@@ -238,16 +252,7 @@ for i = 1:L
     estDistance(i+1) = estd;
 end
 
-%% Create error vectors for beacons of interest. i.e. Only the distance to
-% the next beacon
-% Times the robot reaches beacon: 5 13 21
 
-% simDistance = [simError(1:5,1);
-%                 simError(6:13,2);
-%                 simError(14:L,3)];
-% estDistance = [estError(1:5,1);
-%                 estError(6:13,2);
-%                 estError(14:L,3)];
 
 
 %% Plotting section
