@@ -23,13 +23,13 @@ t = 0:1:L; % Time vector
 %% Noise and disturbances section
 mu = 0; % Mean for noise (unused)
 sigma_xy = .15^2; % Covariance for measurement noise
-sigma_xyDot = .10^2; % Covariance for process/plant noise
+sigma_xyDot = .05^2; % Covariance for process/plant noise
 sigma_phi = .02^2; % Covariance for meas. noise (angle)
 sigma_phiDot = .001^2; % Cov for process/plant noise
 
-sigma_r = .10^2; % covar for Beacon distance meas.
-sigma_th = .01; % covar for beacon angle meas.
-sigma_phi2 = .001^2; % covar for vehic pose beacon meas.
+sigma_r = .1; % covar for Beacon distance meas.
+sigma_th = .01^2; % covar for beacon angle meas.
+sigma_phi2 = .001^2; % covar for vehic pose beacon meas. (commented out right now)
 
 
 % Measurement noise
@@ -91,7 +91,7 @@ delta = zeros(L+1, 1);
 estDistance = zeros(L+1,1);
 
 n = 3; % State Dimensions
-m = 3; % Measurement Dimensions
+m = 6; % Measurement Dimensions
 
 e = eye(3,3);
 
@@ -109,14 +109,19 @@ phiDot=0;
 xpos_ =      zeros(1,L+1); % For ideal sim
 xpos =       zeros(1,L+1); % After process noise and disturbances
 xpos_noisy = zeros(1,L+1); % After measurement noise
+xpos_beacon =zeros(1,L+1);
+xpos_beacon_noisy =zeros(1,L+1);
 ypos_ =      zeros(1,L+1); 
 ypos =       zeros(1,L+1); 
 ypos_noisy = zeros(1,L+1);
+ypos_beacon =zeros(1,L+1);
+ypos_beacon_noisy =zeros(1,L+1);
 phipos =     zeros(1,L+1);
 phipos_ =    zeros(1,L+1);
 phipos_noisy = zeros(1,L+1);
 
-outks = zeros(3, L+1);
+outks = zeros(m, L+1);
+outks_noisy = zeros(m, L+1);
 estimate = zeros(3,L+1);
 
 %% System simulation and measurement
@@ -147,18 +152,21 @@ for i = 1:L
     % outk = [xpos_noisy(i+1); ypos_noisy(i+1); phipos_noisy(i+1)];
 
     % Vincent's requested output version:
-    outk = [  sqrt( (p1(1)-xpos(i))^2 + (p1(2)-ypos(i))^2);
-            atan2( p1(2)-ypos(i), p1(1) - xpos(i));
+    outk = [  sqrt( (p1(1)-xpos(i+1))^2 + (p1(2)-ypos(i+1))^2);
+            atan2( p1(2)-ypos(i+1), p1(1) - xpos(i+1));
             
-            sqrt( (p2(1)-xpos(i))^2 + (p2(2)-ypos(i))^2) ;
-            atan2( p2(2)-ypos(i), p2(1) - xpos(i));
+            sqrt( (p2(1)-xpos(i+1))^2 + (p2(2)-ypos(i+1))^2) ;
+            atan2( p2(2)-ypos(i+1), p2(1) - xpos(i+1));
             
-            sqrt( (p3(1)-xpos(i))^2 + (p3(2)-ypos(i))^2);
-            atan2( p3(2)-ypos(i), p3(1) - xpos(i))];
+            sqrt( (p3(1)-xpos(i+1))^2 + (p3(2)-ypos(i+1))^2);
+            atan2( p3(2)-ypos(i+1), p3(1) - xpos(i+1))];
             
             %phipos(i)];
+            
+     xpos_beacon(i+1) = p1(1) - outk(1) * cos(outk(2));
+     ypos_beacon(i+1) = p1(2) - outk(1) * sin(outk(2));
         
-     outk = outk + [d1_noise(i+1);
+     outk_noisy = outk + [d1_noise(i+1);
                     th1_noise(i+1);
                     d2_noise(i+1);
                     th2_noise(i+1);
@@ -166,6 +174,9 @@ for i = 1:L
                     th3_noise(i+1)];
                     %phi_noise2(i+1);
                     %];
+                    
+     xpos_beacon_noisy(i+1) = p1(1) - outk_noisy(1) * cos(outk_noisy(2));
+     ypos_beacon_noisy(i+1) = p1(2) - outk_noisy(1) * sin(outk_noisy(2));
 
     %% UKF TIME UPDATE SECTION
 
@@ -240,20 +251,16 @@ for i = 1:L
     % Calculate Kalman Gain
     K = P_xy / P_y;
 
-    xk_plus = xk_minus + K*(outk - out_est);
+    xk_plus = xk_minus + K*(outk_noisy - out_est);
     Pk_plus = Pk_minus - K*P_xy';
    
     %% Observation section
     estimate(:,i+1) = xk_plus;
-    % Distance with noisy simulated measurements
-    d_1 = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-p1); % Distance to beacon 1
-    d_2 = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-p2); % Distance to beacon 2
-    d_3 = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-p3); % Distance to beacon 3
-    simError(i+1, :) = [d_1, d_2, d_3];
+    
         
     % Estimate error from actual simulated path (with noise)
     distance(i+1) = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-[xpos(i+1);ypos(i+1)]); % raw measurement error to actual simulated path (with process noise and disturbances)
-    %delta(i+1) = norm([outk(1); outk(2)] - [xpos(i+1); ypos(i+1)]); % Magnitude of measurement noise in x and y
+    delta(i+1) = norm([xpos_beacon_noisy(i+1); ypos_beacon_noisy(i+1)] - [xpos_beacon(i+1); ypos_beacon(i+1)]); % Magnitude of measurement noise in x and y
     estDistance(i+1) = norm([xk_plus(1);xk_plus(2)]-[xpos(i+1);ypos(i+1)]); % Filter-estimated distance 
 
 end
@@ -263,15 +270,29 @@ beacons = [ 0 0;
             5 0;
             5 5;
             8 1];
-figure(1)
+% figure(1)
+% plot(xpos_, ypos_); % Intended path (no process or measurement noise)
+% hold on
+% plot(xpos, ypos); % Actual path (no measurement noise)
+% plot(xpos_noisy, ypos_noisy) % Measured state (includes measurement and process noise)
+% 
+% title("Paths: Ideal, actual, and measured")
+% xlabel('X coordinate')
+% xlim([0 9])
+% ylabel('Y coordinate')
+% legend('Intended Path', 'actual path', 'unfiltered measurement results', 'UKF results')
+% labels = {'Start','Beacon 1', 'Beacon 2', 'Beacon 3'};
+% text(beacons(:,1),beacons(:,2),labels,'VerticalAlignment','top','HorizontalAlignment','right')
+
+figure(2)
 plot(xpos_, ypos_); % Intended path (no process or measurement noise)
 hold on
-plot(xpos, ypos); % Actual path (no measurement noise)
-plot(xpos_noisy, ypos_noisy) % Measured state (includes measurement and process noise)
+plot(xpos_beacon, ypos_beacon) % Measured state (includes measurement and process noise)
+plot(xpos_beacon_noisy, ypos_beacon_noisy) % Measured state (includes measurement and process noise)
 plot(estimate(1,:),estimate(2,:)); % UKF results
 plot(beacons(:,1),beacons(:,2), 'o')
 
-title("Robot path")
+title("Paths: Ideal, actual, and measured (beacon)")
 xlabel('X coordinate')
 xlim([0 9])
 ylabel('Y coordinate')
@@ -279,12 +300,13 @@ legend('Intended Path', 'actual path', 'unfiltered measurement results', 'UKF re
 labels = {'Start','Beacon 1', 'Beacon 2', 'Beacon 3'};
 text(beacons(:,1),beacons(:,2),labels,'VerticalAlignment','top','HorizontalAlignment','right')
 
-figure(2)
-plot(t,distance)
+figure(3)
+% plot(t,distance)
+plot(t,delta)
 hold on
 plot(t,estDistance)
 title("Distance from Beacon Path")
 xlabel('time (s)')
 ylabel('Distance (m)')
-legend('Noisy Raw Measurements', 'UKF Measurements')
+legend('Noisy Beacon Measurements', 'UKF Measurements')
 
