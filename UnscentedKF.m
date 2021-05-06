@@ -86,6 +86,8 @@ p3 = [8; 1]; % beacon 3 location
 simError = zeros(L+1,3);
 estError = zeros(L+1,3);
 
+unf_est = zeros(2, L+1); % Unfiltered estimate from beacons
+
 distance = zeros(L+1,1);
 delta = zeros(L+1, 1);
 estDistance = zeros(L+1,1);
@@ -110,12 +112,12 @@ xpos_ =      zeros(1,L+1); % For ideal sim
 xpos =       zeros(1,L+1); % After process noise and disturbances
 xpos_noisy = zeros(1,L+1); % After measurement noise
 xpos_beacon =zeros(1,L+1);
-xpos_beacon_noisy =zeros(1,L+1);
+xpos_beacon_noisy =zeros(3,L+1);
 ypos_ =      zeros(1,L+1); 
 ypos =       zeros(1,L+1); 
 ypos_noisy = zeros(1,L+1);
 ypos_beacon =zeros(1,L+1);
-ypos_beacon_noisy =zeros(1,L+1);
+ypos_beacon_noisy =zeros(3,L+1);
 phipos =     zeros(1,L+1);
 phipos_ =    zeros(1,L+1);
 phipos_noisy = zeros(1,L+1);
@@ -175,8 +177,14 @@ for i = 1:L
                     %phi_noise2(i+1);
                     %];
                     
-     xpos_beacon_noisy(i+1) = p1(1) - outk_noisy(1) * cos(outk_noisy(2));
-     ypos_beacon_noisy(i+1) = p1(2) - outk_noisy(1) * sin(outk_noisy(2));
+     xpos_beacon_noisy(:,i+1) = [p1(1) - outk_noisy(1) * cos(outk_noisy(2));
+                                 p2(1) - outk_noisy(3) * cos(outk_noisy(4));
+                                 p3(1) - outk_noisy(5) * cos(outk_noisy(6))];
+     
+     ypos_beacon_noisy(:,i+1) = [p1(2) - outk_noisy(1) * sin(outk_noisy(2));
+                                 p2(2) - outk_noisy(3) * sin(outk_noisy(4));
+                                 p3(2) - outk_noisy(5) * sin(outk_noisy(6))];
+         
 
     %% UKF TIME UPDATE SECTION
 
@@ -256,11 +264,14 @@ for i = 1:L
    
     %% Observation section
     estimate(:,i+1) = xk_plus;
+    unf_est(:, i+1) = [mean(xpos_beacon_noisy(:, i+1));
+                       mean(ypos_beacon_noisy(:, i+1))];
     
         
     % Estimate error from actual simulated path (with noise)
     distance(i+1) = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-[xpos(i+1);ypos(i+1)]); % raw measurement error to actual simulated path (with process noise and disturbances)
-    delta(i+1) = norm([xpos_beacon_noisy(i+1); ypos_beacon_noisy(i+1)] - [xpos_beacon(i+1); ypos_beacon(i+1)]); % Magnitude of measurement noise in x and y
+    %delta(i+1) = norm([xpos_beacon_noisy(i+1); ypos_beacon_noisy(i+1)] - [xpos_beacon(i+1); ypos_beacon(i+1)]); % Magnitude of measurement noise in x and y
+    delta(i+1) = norm(unf_est(:, i+1) - [xpos_beacon(i+1); ypos_beacon(i+1)]); % Magnitude of measurement noise in x and y
     estDistance(i+1) = norm([xk_plus(1);xk_plus(2)]-[xpos(i+1);ypos(i+1)]); % Filter-estimated distance 
 
 end
@@ -287,7 +298,7 @@ beacons = [ 0 0;
 figure(2)
 plot(xpos_, ypos_); % Intended path (no process or measurement noise)
 hold on
-plot(xpos_beacon, ypos_beacon) % Measured state (includes measurement and process noise)
+plot(xpos_beacon, ypos_beacon) % Actual path
 plot(xpos_beacon_noisy, ypos_beacon_noisy) % Measured state (includes measurement and process noise)
 plot(estimate(1,:),estimate(2,:)); % UKF results
 plot(beacons(:,1),beacons(:,2), 'o')

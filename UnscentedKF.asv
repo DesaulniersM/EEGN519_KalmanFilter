@@ -23,13 +23,13 @@ t = 0:1:L; % Time vector
 %% Noise and disturbances section
 mu = 0; % Mean for noise (unused)
 sigma_xy = .15^2; % Covariance for measurement noise
-sigma_xyDot = .10^2; % Covariance for process/plant noise
+sigma_xyDot = .05^2; % Covariance for process/plant noise
 sigma_phi = .02^2; % Covariance for meas. noise (angle)
 sigma_phiDot = .001^2; % Cov for process/plant noise
 
-sigma_r = .10^2; % covar for Beacon distance meas.
-sigma_th = .01; % covar for beacon angle meas.
-sigma_phi2 = .001^2; % covar for vehic pose beacon meas.
+sigma_r = .1; % covar for Beacon distance meas.
+sigma_th = .01^2; % covar for beacon angle meas.
+sigma_phi2 = .001^2; % covar for vehic pose beacon meas. (commented out right now)
 
 
 % Measurement noise
@@ -86,6 +86,8 @@ p3 = [8; 1]; % beacon 3 location
 simError = zeros(L+1,3);
 estError = zeros(L+1,3);
 
+unf_est = zeros(L+1,1); % Unfiltered estimate from beacons
+
 distance = zeros(L+1,1);
 delta = zeros(L+1, 1);
 estDistance = zeros(L+1,1);
@@ -110,12 +112,12 @@ xpos_ =      zeros(1,L+1); % For ideal sim
 xpos =       zeros(1,L+1); % After process noise and disturbances
 xpos_noisy = zeros(1,L+1); % After measurement noise
 xpos_beacon =zeros(1,L+1);
-xpos_beacon_noisy =zeros(1,L+1);
+xpos_beacon_noisy =zeros(3,L+1);
 ypos_ =      zeros(1,L+1); 
 ypos =       zeros(1,L+1); 
 ypos_noisy = zeros(1,L+1);
 ypos_beacon =zeros(1,L+1);
-ypos_beacon_noisy =zeros(1,L+1);
+ypos_beacon_noisy =zeros(3,L+1);
 phipos =     zeros(1,L+1);
 phipos_ =    zeros(1,L+1);
 phipos_noisy = zeros(1,L+1);
@@ -155,11 +157,11 @@ for i = 1:L
     outk = [  sqrt( (p1(1)-xpos(i+1))^2 + (p1(2)-ypos(i+1))^2);
             atan2( p1(2)-ypos(i+1), p1(1) - xpos(i+1));
             
-            sqrt( (p2(1)-xpos(i))^2 + (p2(2)-ypos(i))^2) ;
-            atan2( p2(2)-ypos(i), p2(1) - xpos(i));
+            sqrt( (p2(1)-xpos(i+1))^2 + (p2(2)-ypos(i+1))^2) ;
+            atan2( p2(2)-ypos(i+1), p2(1) - xpos(i+1));
             
-            sqrt( (p3(1)-xpos(i))^2 + (p3(2)-ypos(i))^2);
-            atan2( p3(2)-ypos(i), p3(1) - xpos(i))];
+            sqrt( (p3(1)-xpos(i+1))^2 + (p3(2)-ypos(i+1))^2);
+            atan2( p3(2)-ypos(i+1), p3(1) - xpos(i+1))];
             
             %phipos(i)];
             
@@ -175,8 +177,14 @@ for i = 1:L
                     %phi_noise2(i+1);
                     %];
                     
-     xpos_beacon_noisy(i+1) = p1(1) - outk_noisy(1) * cos(outk_noisy(2));
-     ypos_beacon_noisy(i+1) = p1(2) - outk_noisy(1) * sin(outk_noisy(2));
+     xpos_beacon_noisy(:,i+1) = [p1(1) - outk_noisy(1) * cos(outk_noisy(2));
+                                 p2(1) - outk_noisy(3) * cos(outk_noisy(4));
+                                 p3(1) - outk_noisy(5) * cos(outk_noisy(6))];
+     
+     ypos_beacon_noisy(:,i+1) = [p1(2) - outk_noisy(1) * sin(outk_noisy(2));
+                                 p2(2) - outk_noisy(3) * sin(outk_noisy(4));
+                                 p3(2) - outk_noisy(5) * sin(outk_noisy(6))];
+         
 
     %% UKF TIME UPDATE SECTION
 
@@ -256,11 +264,14 @@ for i = 1:L
    
     %% Observation section
     estimate(:,i+1) = xk_plus;
+    unf_est(:, i+1) = [mean(xpos_beacon_noisy(:, i+1));
+                       mean(ypos_beacon_noisy(:, i+1))];
     
         
     % Estimate error from actual simulated path (with noise)
     distance(i+1) = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-[xpos(i+1);ypos(i+1)]); % raw measurement error to actual simulated path (with process noise and disturbances)
-    delta(i+1) = norm([xpos_beacon_noisy(i+1); ypos_beacon_noisy(i+1)] - [xpos_beacon(i+1); ypos_beacon(i+1)]); % Magnitude of measurement noise in x and y
+    %delta(i+1) = norm([xpos_beacon_noisy(i+1); ypos_beacon_noisy(i+1)] - [xpos_beacon(i+1); ypos_beacon(i+1)]); % Magnitude of measurement noise in x and y
+    %delta(i+1) = norm([xpos_beacon_noisy(i+1); ypos_beacon_noisy(i+1)] - [xpos_beacon(i+1); ypos_beacon(i+1)]); % Magnitude of measurement noise in x and y
     estDistance(i+1) = norm([xk_plus(1);xk_plus(2)]-[xpos(i+1);ypos(i+1)]); % Filter-estimated distance 
 
 end
