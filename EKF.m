@@ -44,9 +44,9 @@ y_meas_noise = sigma_meas_xy * randn(L,1);
 phi_meas_noise = sigma_meas_phi * randn(L,1);
 
 % Create timeseries objects for process noise (simulink)
-tsx = timeseries(x_noise, t);
-tsy = timeseries(y_noise, t);
-tsphi = timeseries(phi_noise, t);
+tsx = timeseries(x_proc_noise, t);
+tsy = timeseries(y_proc_noise, t);
+tsphi = timeseries(phi_proc_noise, t);
 
 % Create timeseries object for measurement (simulink)
 tsxm = timeseries(x_meas_noise, t);
