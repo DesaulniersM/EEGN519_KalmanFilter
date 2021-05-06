@@ -60,7 +60,7 @@ dist_l = zeros(L+1, 1);
 
 % Right disturbances
 dist_r = zeros(L+1,1);
-dist_r(17:20) = .15;
+% dist_r(17:20) = .15;
 
 %% System initialization section
 % Initial Parameters
@@ -86,6 +86,7 @@ simError = zeros(L+1,3);
 estError = zeros(L+1,3);
 
 distance = zeros(L+1,1);
+delta = zeros(L+1, 1);
 estDistance = zeros(L+1,1);
 
 n = 3; % State Dimensions
@@ -114,8 +115,10 @@ phipos =     zeros(1,L+1);
 phipos_ =    zeros(1,L+1);
 phipos_noisy = zeros(1,L+1);
 
+outks = zeros(3, L+1)
 estimate = zeros(3,L+1);
 
+%% System simulation and measurement
 for i = 1:L
     %% Ideal sim section (no noise, no disturbance):
     xDot_ = .5 * cos(phipos_(i)) * (vr(i) + vl(i)); % Incremental change in x
@@ -246,14 +249,11 @@ for i = 1:L
     simError(i+1, :) = [d_1, d_2, d_3];
         
     % Estimate error from actual simulated path (with noise)
-    d = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-[xpos(i+1);ypos(i+1)]); % raw measurement error to actual simulated path (with process noise and disturbances)
-    estd = norm([xk_plus(1);xk_plus(2)]-[xpos(i+1);ypos(i+1)]); % Filter-estimated distance 
-    distance(i+1) = d;
-    estDistance(i+1) = estd;
+    distance(i+1) = norm([xpos_noisy(i+1);ypos_noisy(i+1)]-[xpos(i+1);ypos(i+1)]); % raw measurement error to actual simulated path (with process noise and disturbances)
+    %delta(i+1) = norm([outk(1); outk(2)] - [xpos(i+1); ypos(i+1)]); % Magnitude of measurement noise in x and y
+    estDistance(i+1) = norm([xk_plus(1);xk_plus(2)]-[xpos(i+1);ypos(i+1)]); % Filter-estimated distance 
+
 end
-
-
-
 
 %% Plotting section
 beacons = [ 1 0;
@@ -264,7 +264,7 @@ figure(1)
 plot(xpos_, ypos_); % Intended path (no process or measurement noise)
 hold on
 plot(xpos, ypos); % Actual path (no measurement noise)
-plot(xpos_noisy, ypos_noisy) % Actual state (includes measurement and process noise)
+plot(xpos_noisy, ypos_noisy) % Measured state (includes measurement and process noise)
 plot(estimate(1,:),estimate(2,:)); % UKF results
 plot(beacons(:,1),beacons(:,2), 'o')
 
