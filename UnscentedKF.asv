@@ -33,7 +33,7 @@ sigma_phi2 = .001; % covar for vehic pose beacon meas.
 
 
 % Measurement noise
-x_noise = sigma_xy * randn(L+1,1); % add mu for non-zero mean
+x_noise = sigma_xy^.5 * randn(L+1,1); % add mu for non-zero mean
 y_noise = sigma_xy * randn(L+1,1);
 phi_noise = sigma_phi * randn(L+1,1);
 
@@ -49,9 +49,9 @@ phi_noise2 = sigma_phi2 * randn(L+1,1);
 xDot_noise = sigma_xyDot * randn(L+1,1);
 yDot_noise = sigma_xyDot * randn(L+1,1);
 phiDot_noise = sigma_phiDot * rand(L+1,1);
-xDot_noise = zeros(L+1,1); %testing
-yDot_noise = zeros(L+1,1);
-phiDot_noise = zeros(L+1,1);
+% xDot_noise = zeros(L+1,1); %testing
+% yDot_noise = zeros(L+1,1);
+% phiDot_noise = zeros(L+1,1);
 
 
 % Left disturbances
@@ -115,7 +115,7 @@ phipos =     zeros(1,L+1);
 phipos_ =    zeros(1,L+1);
 phipos_noisy = zeros(1,L+1);
 
-outks = zeros(3, L+1)
+outks = zeros(3, L+1);
 estimate = zeros(3,L+1);
 
 %% System simulation and measurement
@@ -131,7 +131,7 @@ for i = 1:L
     phipos_(i+1) = phiDot_ + phipos_(i);
     
     %% Realistic sim section:
-    xDot = .5 * cos(phipos(i)) * (vr(i) + dist_r(i) + vl(i) + dist_l(i)) + xDot_noise(i); %Includes disturbance and measurement noise
+    xDot = .5 * cos(phipos(i)) * (vr(i) + dist_r(i) + vl(i) + dist_l(i)) + xDot_noise(i); %Includes disturbance and process noise
     xpos(i+1) = xDot + xpos(i); % Iterate simulation
     xpos_noisy(i+1) = xpos(i+1) + x_noise(i+1); % Collect measurement (with noise)
 

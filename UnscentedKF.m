@@ -22,36 +22,36 @@ t = 0:1:L; % Time vector
 
 %% Noise and disturbances section
 mu = 0; % Mean for noise (unused)
-sigma_xy = .15; % Covariance for measurement noise
-sigma_xyDot = .05; % Covariance for process/plant noise
-sigma_phi = .02; % Covariance for meas. noise (angle)
-sigma_phiDot = .001; % Cov for process/plant noise
+sigma_xy = .15^2; % Covariance for measurement noise
+sigma_xyDot = .10^2; % Covariance for process/plant noise
+sigma_phi = .02^2; % Covariance for meas. noise (angle)
+sigma_phiDot = .001^2; % Cov for process/plant noise
 
-sigma_r = .05; % covar for Beacon distance meas.
+sigma_r = .10^2; % covar for Beacon distance meas.
 sigma_th = .01; % covar for beacon angle meas.
-sigma_phi2 = .001; % covar for vehic pose beacon meas.
+sigma_phi2 = .001^2; % covar for vehic pose beacon meas.
 
 
 % Measurement noise
-x_noise = sigma_xy * randn(L+1,1); % add mu for non-zero mean
-y_noise = sigma_xy * randn(L+1,1);
-phi_noise = sigma_phi * randn(L+1,1);
+x_noise = sigma_xy^.5 * randn(L+1,1); % add mu for non-zero mean
+y_noise = sigma_xy^.5 * randn(L+1,1);
+phi_noise = sigma_phi^.5 * randn(L+1,1);
 
-d1_noise = sigma_r * randn(L+1,1); % noise for beacon distance 1
-d2_noise = sigma_r * randn(L+1,1);
-d3_noise = sigma_r * randn(L+1,1);
-th1_noise = sigma_th * randn(L+1,1);
-th2_noise = sigma_th * randn(L+1,1);
-th3_noise = sigma_th * randn(L+1,1);
-phi_noise2 = sigma_phi2 * randn(L+1,1);
+d1_noise = sigma_r^.5 * randn(L+1,1); % noise for beacon distance 1
+d2_noise = sigma_r^.5 * randn(L+1,1);
+d3_noise = sigma_r^.5 * randn(L+1,1);
+th1_noise = sigma_th^.5 * randn(L+1,1);
+th2_noise = sigma_th^.5 * randn(L+1,1);
+th3_noise = sigma_th^.5 * randn(L+1,1);
+phi_noise2 = sigma_phi2^.5 * randn(L+1,1);
 
 % Process noise
-xDot_noise = sigma_xyDot * randn(L+1,1);
-yDot_noise = sigma_xyDot * randn(L+1,1);
-phiDot_noise = sigma_phiDot * rand(L+1,1);
-xDot_noise = zeros(L+1,1); %testing
-yDot_noise = zeros(L+1,1);
-phiDot_noise = zeros(L+1,1);
+xDot_noise = sigma_xyDot^.5 * randn(L+1,1);
+yDot_noise = sigma_xyDot^.5 * randn(L+1,1);
+phiDot_noise = sigma_phiDot^.5 * rand(L+1,1);
+% xDot_noise = zeros(L+1,1); %testing
+% yDot_noise = zeros(L+1,1);
+% phiDot_noise = zeros(L+1,1);
 
 
 % Left disturbances
@@ -66,8 +66,9 @@ dist_r = zeros(L+1,1);
 % Initial Parameters
 Q = diag([sigma_xyDot sigma_xyDot sigma_phiDot]); % Covariance matrix for plant noise (?)
 %R = diag([sigma_xy sigma_xy sigma_phi]); % Covariance matrix for measurement noise (?)
-R = diag([sigma_r sigma_th sigma_r sigma_th sigma_r sigma_th sigma_phi2]);
-P0 = eye(3,3)./500; % Covariance of initial state (~0 since known exactly)
+R = diag([sigma_r sigma_th sigma_r sigma_th sigma_r sigma_th]); % sigma_phi2]);
+%P0 = eye(3,3)./500; % Covariance of initial state (~0 since known exactly)
+P0 = zeros(3);
 x0 = [0;0;0]; % Initial coordinates
 
 Pk_plus = P0;
@@ -90,7 +91,7 @@ delta = zeros(L+1, 1);
 estDistance = zeros(L+1,1);
 
 n = 3; % State Dimensions
-m = 7; % Measurement Dimensions
+m = 6; % Measurement Dimensions
 
 e = eye(3,3);
 
@@ -115,7 +116,7 @@ phipos =     zeros(1,L+1);
 phipos_ =    zeros(1,L+1);
 phipos_noisy = zeros(1,L+1);
 
-outks = zeros(3, L+1)
+outks = zeros(3, L+1);
 estimate = zeros(3,L+1);
 
 %% System simulation and measurement
@@ -131,7 +132,7 @@ for i = 1:L
     phipos_(i+1) = phiDot_ + phipos_(i);
     
     %% Realistic sim section:
-    xDot = .5 * cos(phipos(i)) * (vr(i) + dist_r(i) + vl(i) + dist_l(i)) + xDot_noise(i); %Includes disturbance and measurement noise
+    xDot = .5 * cos(phipos(i)) * (vr(i) + dist_r(i) + vl(i) + dist_l(i)) + xDot_noise(i); %Includes disturbance and process noise
     xpos(i+1) = xDot + xpos(i); % Iterate simulation
     xpos_noisy(i+1) = xpos(i+1) + x_noise(i+1); % Collect measurement (with noise)
 
@@ -153,23 +154,27 @@ for i = 1:L
             atan2( p2(2)-ypos(i), p2(1) - xpos(i));
             
             sqrt( (p3(1)-xpos(i))^2 + (p3(2)-ypos(i))^2);
-            atan2( p3(2)-ypos(i), p3(1) - xpos(i));
+            atan2( p3(2)-ypos(i), p3(1) - xpos(i))];
             
-            phipos(i)];
+            %phipos(i)];
         
      outk = outk + [d1_noise(i+1);
                     th1_noise(i+1);
                     d2_noise(i+1);
                     th2_noise(i+1);
                     d3_noise(i+1);
-                    th3_noise(i+1);
-                    phi_noise2(i+1);
-                    ];
+                    th3_noise(i+1)];
+                    %phi_noise2(i+1);
+                    %];
 
     %% UKF TIME UPDATE SECTION
 
     %     Get standard deviation matrix
-    M = chol(Pk_plus);
+    try 
+        M = chol(Pk_plus);
+    catch
+        M = zeros(3);
+    end
     %     Simulate 2n points through state transition
     for j = 1:2*n
     %     Generate samples
@@ -187,9 +192,8 @@ for i = 1:L
     % Take average mean as predicted mean
     x_kplus1_minus = state_sim*avg;
 
+    P_kplus1_minus = zeros(3,3);
     for j = 1:2*n
-        P_kplus1_minus = zeros(3,3);
-
     % Take average covariance as predicted covariance
         P_kplus1_minus = P_kplus1_minus + (1/(2*n)) * (state_sim(:,j)-x_kplus1_minus) * (state_sim(:,j)-x_kplus1_minus)';
     end
@@ -219,15 +223,14 @@ for i = 1:L
                         sqrt( (p2(1)-state_samples(1,j))^2 + (p2(2)-state_samples(2,j))^2) ;
                         atan2( p2(2)-state_samples(2,j), p2(1) - state_samples(1,j));
                         sqrt( (p3(1)-state_samples(1,j))^2 + (p3(2)-state_samples(2,j))^2);
-                        atan2( p3(2)-state_samples(2,j), p3(1) - state_samples(1,j));
-                        state_samples(3,j) ];
+                        atan2( p3(2)-state_samples(2,j), p3(1) - state_samples(1,j))];
+                        %state_samples(3,j) ];
     end
     out_est = out_sim * avg;
     
+    P_xy = zeros(n,m);
+    P_y = zeros(m,m);
     for j = 1:2*n
-        P_xy = zeros(n,m);
-        P_y = zeros(m,m);
-
         % Take average covariance as predicted covariance
         P_xy = P_xy + (1/(2*n)) * (state_samples(:,j)-xk_minus) * (out_sim(:,j)-out_est)';
         P_y = P_y + (1/(2*n)) * (out_sim(:,j)-out_est) * (out_sim(:,j)-out_est)';
@@ -256,7 +259,7 @@ for i = 1:L
 end
 
 %% Plotting section
-beacons = [ 1 0;
+beacons = [ 0 0;
             5 0;
             5 5;
             8 1];
