@@ -147,7 +147,7 @@ for i = 0:1:22
     
     % Add measurement noise:
     yk = [xpos(i+1); ypos(i+1); phiPos(i+1)] + [x_meas_noise(i+1); y_meas_noise(i+1); phi_meas_noise(i+1);];
-    ykn(:, i+1) = [yk(1); yk(2); yk(3)];
+    ykn = [yk(1); yk(2); yk(3)];
 
     
     %    Time Update section:
@@ -244,16 +244,15 @@ beacons = [ 1 0;
 figure(1)
 plot(xpos_, ypos_);
 hold on
-plot(xpos, ypos);
-plot(ykn(1,:), ykn(2,:));
 plot(estimate(1,:),estimate(2,:));
+plot(xpos, ypos)
 plot(beacons(:,1),beacons(:,2), 'o')
 %plot(x_tris, y_tris)
 title("Robot path")
 xlabel('X coordinate')
 xlim([0 9])
 ylabel('Y coordinate')
-legend('Ideal path', 'actual path', 'unfiltered estimate', 'EKF estimate', 'Beacons')
+legend('Ideal path', 'EKF', 'unfiltered', 'Beacons')
 labels = {'Start','Beacon 1', 'Beacon 2', 'Beacon 3'};
 text(beacons(:,1),beacons(:,2),labels,'VerticalAlignment','top','HorizontalAlignment','right')
 
@@ -262,8 +261,8 @@ plot(t,distance)
 hold on
 plot(t, delta)
 plot(t,estDistance)
-title("Some distances")
+title("Distance from Actual Path")
 xlabel('time (s)')
 ylabel('Distance (m)')
-legend('Actual path to ideal path','Unfiltered Path to Actual path', 'EKF Path to Actual Path')
+legend('Unfiltered Measurements', 'EKF Results')
 
