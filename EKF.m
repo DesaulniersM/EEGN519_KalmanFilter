@@ -249,21 +249,21 @@ plot(ykn(1,:), ykn(2,:));
 plot(estimate(1,:),estimate(2,:));
 plot(beacons(:,1),beacons(:,2), 'o')
 %plot(x_tris, y_tris)
-title("Robot path")
+title("Paths and Estimates, EKF")
 xlabel('X coordinate')
 xlim([0 9])
 ylabel('Y coordinate')
-legend('Ideal path', 'actual path', 'unfiltered estimate', 'EKF estimate', 'Beacons')
+legend('Ideal path', 'Actual path', 'Unfiltered estimate', 'EKF estimate', 'Beacons')
 labels = {'Start','Beacon 1', 'Beacon 2', 'Beacon 3'};
 text(beacons(:,1),beacons(:,2),labels,'VerticalAlignment','top','HorizontalAlignment','right')
 
 figure(2)
-plot(t,distance)
-hold on
+%plot(t,distance)
 plot(t, delta)
+hold on
 plot(t,estDistance)
-title("Some distances")
+title("Estimate Errors, EKF")
 xlabel('time (s)')
 ylabel('Distance (m)')
-legend('Actual path to ideal path','Unfiltered Path to Actual path', 'EKF Path to Actual Path')
+legend('Unfiltered Estimate to Actual Path', 'EKF Estimate to Actual Path')
 
