@@ -299,7 +299,7 @@ figure(2)
 plot(xpos_, ypos_); % Intended path (no process or measurement noise)
 hold on
 plot(xpos_beacon, ypos_beacon) % Actual path
-plot(xpos_beacon_noisy, ypos_beacon_noisy) % Measured state (includes measurement and process noise)
+plot(unf_est(1,:), unf_est(2,:)) % Measured state (includes measurement and process noise)
 plot(estimate(1,:),estimate(2,:)); % UKF results
 plot(beacons(:,1),beacons(:,2), 'o')
 
